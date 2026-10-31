@@ -1,0 +1,62 @@
+name: Build Android APK (0% Java)
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-native-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.90.0
+          targets: aarch64-linux-android
+
+      - name: Set up Android NDK
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r27c
+
+      - name: Install cargo-ndk
+        run: cargo install cargo-ndk
+
+      - name: Build Android cdylib (arm64-v8a)
+        run: |
+          cargo ndk -t arm64-v8a build --release -p horizon-launcher-android
+
+      - name: Package Native APK
+        run: |
+          mkdir -p build/apk/lib/arm64-v8a
+          cp target/aarch64-linux-android/release/libhorizon_launcher_android.so build/apk/lib/arm64-v8a/
+          
+          # Package manifest and base assets
+          ${ANDROID_HOME}/build-tools/34.0.0/aapt package -F build/horizon-unsigned.apk -M android/AndroidManifest.xml -I ${ANDROID_HOME}/platforms/android-34/android.jar -f
+          
+          # Add native shared libraries directly to APK
+          cd build/apk && zip -u -r ../horizon-unsigned.apk lib/ && cd ../..
+          
+          # Align 4-byte boundaries for page-aligned shared libraries
+          ${ANDROID_HOME}/build-tools/34.0.0/zipalign -v -p 4 build/horizon-unsigned.apk build/horizon-aligned.apk
+          
+          # Sign with debug keystore
+          keytool -genkeypair -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+          ${ANDROID_HOME}/build-tools/34.0.0/apksigner sign --ks debug.keystore --ks-pass pass:android --out build/horizon-26.3-mobile-arm64.apk build/horizon-aligned.apk
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: horizon-26.3-mobile-arm64-apk
+          path: build/horizon-26.3-mobile-arm64.apk
+          if-no-files-found: error

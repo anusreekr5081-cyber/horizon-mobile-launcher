@@ -1,58 +1,111 @@
-# Horizon Mobile
+# Horizon 26.3 Mobile
 
-A Rust-only Android host for the Horizon 26.3 native game.
+A 100% Rust Android Launcher and Native Host for Horizon 26.3.
 
-This project is not a Pojav-style JVM launcher. The launcher, installer,
-native game host, renderer bridge, and Android UI are Rust. The target is
-Android arm64-v8a first, with low-memory defaults and no Java or Kotlin app
-code.
+**Zero Java, Zero Kotlin, Zero JVM.** Built from the ground up for low-end Android smartphones with Pojav/Mojo-launcher style customization, virtual touch controls, performance budgeting, and content management.
 
-## What is here now
+---
 
-- A pinned upstream submodule at upstream/horizon for Horizon's MIT-licensed
-  Rust game source.
-- A safe Rust core that owns isolated profiles, a fixed 26.3 install layout,
-  native payload validation, atomic install records, and checksum-verified
-  downloads.
-- Native-only renderer choices: Auto, Zink, VirGL, GL4ES, and ANGLE.
-- Tests for fixed 26.3 profiles and failed-download safety.
+## Highlights
 
-## Current state
+- **Pure Rust Native Architecture**: Built on `android-activity` (`ANativeActivity`) with `android:hasCode="false"`. No Java Virtual Machine, no Dalvik/ART overhead, and no JNI garbage collection pauses.
+- **Horizon 26.3 Dedicated**: Locked strictly to the independent Horizon 26.3 Rust rewrite of Minecraft.
+- **Low-End Phone Optimizations**:
+  - Memory presets: **Ultra-Low (512 MiB)**, **Low (768 MiB)**, **Balanced (1024 MiB)**, **High (2048 MiB)**.
+  - Viewport resolution scaler (0.50x, 0.65x, 0.75x, 1.0x) to eliminate GPU fillrate bottlenecks on Mali/Adreno budget chips.
+  - Worker thread throttling to prevent thermal saturation on ARM big.LITTLE CPUs.
+  - Forced 16-bit depth buffer and shader pipeline caching.
+- **Pojav-Style Virtual Touch Controls**:
+  - Full multitouch support with D-Pad, Analog Joystick, Jump, Sneak lock, Sprint lock, Attack/Mine, Use/Place, Inventory, Chat, Pause, F3, and F5 buttons.
+  - Factory presets: **Default Phone** and **Compact Low-End** (battery & fillrate optimized).
+  - JSON layout export and import.
+- **Isolated Content & Add-on Management**:
+  - Multi-profile management with independent `instances/<profile>/` directories.
+  - World saves management (inspect, backup, delete).
+  - Mod management (scan, toggle active/disabled).
+  - Resource pack management.
+- **Offline CLI Companion (`horizon-cli`)**:
+  - Full terminal management directly in Termux or desktop Linux without needing Android Studio.
 
-This is the Android port foundation, not a playable APK yet. The upstream
-client does not currently ship an Android build, so the next work is a Rust
-Android platform layer for its wgpu window, touch input, audio, lifecycle, and
-native library packaging. The project does not include Minecraft code, assets,
-jars, or world data.
+---
 
-## Non-negotiable rules
+## Workspace Layout
 
-- Horizon 26.3 only.
-- No JVM, no Java runtime, and no Java or Kotlin application source.
-- Do not commit Mojang assets, jars, decompiled source, or prepared resources.
-- Require a legally owned Minecraft copy before importing any game data.
-- Verify every downloaded native payload before it is registered.
+```
+├── .github/workflows/
+│   ├── ci.yml               # Automated formatting, clippy, and unit tests
+│   └── build-apk.yml        # Pure-native Android APK packaging & signing pipeline
+├── android/
+│   └── AndroidManifest.xml  # NativeActivity manifest (android:hasCode="false")
+├── crates/
+│   ├── launcher-core/       # Domain logic: profiles, install, touch, performance, content
+│   ├── launcher-android/    # Android NativeActivity host, touch mapper & game bridge
+│   └── launcher-cli/        # Standalone terminal manager (horizon-cli)
+├── scripts/
+│   └── build.sh             # One-step local build and verification script
+├── upstream/
+│   └── horizon/             # Pinned upstream Horizon 26.3 git submodule
+├── Cargo.toml               # Cargo workspace manifest
+├── rust-toolchain.toml      # Pinned Rust toolchain configuration
+├── UPSTREAM.md              # Upstream boundary and licensing
+└── README.md
+```
 
-## Layout
+---
 
-- crates/launcher-core: Rust-only install/profile/download policy.
-- upstream/horizon: pinned upstream game source; never modify it directly.
-- .github/workflows: Rust checks for this repository.
+## CLI Usage (`horizon-cli`)
 
-## Upstream
+The CLI runs directly on Termux (Android) or Linux:
 
-Horizon is an independent, unofficial Rust rewrite of Minecraft Java Edition.
-This repository is an Android-port host and is not affiliated with Horizon,
-Mojang, or Microsoft. See UPSTREAM.md for the exact boundary and attribution.
+```bash
+# Display launcher status and active profiles
+horizon-cli status
 
-## Development
+# Inspect hardware specs and get auto-detected performance recommendations
+horizon-cli diagnostics
 
-Install Rust 1.90 and an Android NDK, then run:
+# Create a low-memory profile
+horizon-cli profile create "LowEnd-Play" 512 virgl
 
-~~~sh
-cargo test -p horizon-mobile-core
-cargo clippy -p horizon-mobile-core -- -D warnings
-~~~
+# List configured profiles
+horizon-cli profile list
 
-The commands above test only this project's Rust core. They do not download or
-process game files.
+# Export touch controls layout
+horizon-cli touch export compact ./touch_layout.json
+
+# View and toggle mods in a profile
+horizon-cli content mods <PROFILE_ID>
+horizon-cli content toggle <PROFILE_ID> <MOD_FILENAME> off
+```
+
+---
+
+## Building & Verification
+
+### Running Workspace Tests
+```bash
+cargo test --workspace
+```
+
+### Running Lints & Format Checks
+```bash
+cargo fmt --all -- --check
+cargo clippy --workspace -- -D warnings
+```
+
+### Building Release Binaries
+```bash
+./scripts/build.sh
+```
+
+### Building the Android APK (Zero Java)
+GitHub Actions automatically builds and signs the native `.apk` on every push to `master`. The workflow uses `cargo-ndk` to compile `libhorizon_launcher_android.so` for `arm64-v8a` and packages it into an APK using Android NDK/build-tools without Gradle.
+
+---
+
+## Legal & Upstream Boundary
+
+- Horizon is an independent, unofficial Rust rewrite of Minecraft Java Edition.
+- This repository is a native Android host and launcher; it is not affiliated with Horizon, Mojang, or Microsoft.
+- **Zero Mojang code, jars, assets, or decompiled resources are committed or distributed here.**
+- Players must possess a legally owned copy of the game. See [UPSTREAM.md](UPSTREAM.md) for full licensing details.

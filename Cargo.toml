@@ -1,5 +1,9 @@
 [workspace]
-members = ["crates/launcher-core"]
+members = [
+    "crates/launcher-core",
+    "crates/launcher-android",
+    "crates/launcher-cli",
+]
 resolver = "2"
 
 [workspace.package]

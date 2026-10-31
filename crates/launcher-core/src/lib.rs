@@ -3,18 +3,26 @@
 //! The safe Rust domain layer shared by the native Android launcher and the
 //! Horizon Android game host. It intentionally has no foreign VM launcher.
 
+pub mod content;
+pub mod diagnostics;
 pub mod download;
 pub mod error;
 pub mod horizon;
 pub mod install;
 pub mod launcher;
 pub mod model;
+pub mod performance;
 pub mod store;
+pub mod touch;
 
+pub use content::{list_mods, list_resource_packs, list_worlds, toggle_mod, ModInfo, WorldInfo};
+pub use diagnostics::{LogCollector, SystemDiagnostics};
 pub use error::{LauncherError, Result};
 pub use horizon::{AndroidAbi, GAME_VERSION};
 pub use install::{HorizonInstallation, InstallStatus};
 pub use launcher::{LauncherSnapshot, NativeLauncher};
+pub use performance::{ParticleQuality, PerformancePreset, PerformanceProfile};
+pub use touch::{ButtonShape, TouchAction, TouchLayout, VirtualButton};
 
 #[cfg(test)]
 mod tests {
@@ -25,7 +33,14 @@ mod tests {
     };
 
     use super::{
-        download::stage_verified_copy, horizon::AndroidAbi, model::Renderer, NativeLauncher,
+        content::{list_mods, toggle_mod},
+        diagnostics::{LogCollector, SystemDiagnostics},
+        download::stage_verified_copy,
+        horizon::AndroidAbi,
+        model::Renderer,
+        performance::PerformanceProfile,
+        touch::{TouchAction, TouchLayout, VirtualButton},
+        NativeLauncher,
     };
 
     fn temporary_directory(name: &str) -> std::path::PathBuf {
@@ -69,5 +84,77 @@ mod tests {
         assert!(!target.exists());
 
         fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn touch_layout_validations_and_presets() {
+        let default_layout = TouchLayout::default_phone();
+        assert!(!default_layout.buttons.is_empty());
+
+        let compact = TouchLayout::compact_low_end();
+        assert!(!compact.haptic_feedback); // battery saver
+
+        let invalid_btn = VirtualButton::new("test", "T", TouchAction::Jump, 1.5, 0.5, 0.1, 0.1);
+        assert!(invalid_btn.is_err());
+    }
+
+    #[test]
+    fn performance_recommendation_and_limits() {
+        let ultra_low = PerformanceProfile::recommend(2048, 4);
+        assert_eq!(ultra_low.memory_limit_mib, 512);
+        assert_eq!(ultra_low.render_distance, 4);
+        assert!(ultra_low.force_16bit_depth);
+
+        let balanced = PerformanceProfile::recommend(6144, 8);
+        assert_eq!(balanced.memory_limit_mib, 1024);
+        assert_eq!(balanced.target_fps, 60);
+
+        let mut invalid_profile = ultra_low.clone();
+        invalid_profile.memory_limit_mib = 100; // too low
+        assert!(invalid_profile.validate().is_err());
+    }
+
+    #[test]
+    fn content_mod_toggle() {
+        let dir = temporary_directory("content");
+        let mods_dir = dir.join("mods");
+        fs::create_dir_all(&mods_dir).unwrap();
+
+        let mod_file = mods_dir.join("sodium-horizon.jar");
+        fs::write(&mod_file, b"dummy mod content").unwrap();
+
+        let mods = list_mods(&dir).unwrap();
+        assert_eq!(mods.len(), 1);
+        assert!(mods[0].enabled);
+
+        // Disable mod
+        let disabled_path = toggle_mod(&dir, "sodium-horizon.jar", false).unwrap();
+        assert!(disabled_path.ends_with("sodium-horizon.jar.disabled"));
+
+        let mods_after = list_mods(&dir).unwrap();
+        assert_eq!(mods_after.len(), 1);
+        assert!(!mods_after[0].enabled);
+
+        // Re-enable mod
+        let reenabled = toggle_mod(&dir, "sodium-horizon.jar.disabled", true).unwrap();
+        assert!(reenabled.ends_with("sodium-horizon.jar"));
+
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn diagnostics_and_log_sanitization() {
+        let sys = SystemDiagnostics::probe();
+        assert_eq!(sys.horizon_target, "26.3");
+        assert!(sys.cpu_cores >= 1);
+
+        let collector = LogCollector::new(5);
+        collector.append("Normal info message");
+        collector.append("Header Authorization: Bearer secret_token_12345");
+
+        let lines = collector.snapshot();
+        assert_eq!(lines.len(), 2);
+        assert!(lines[1].contains("[REDACTED_TOKEN]"));
+        assert!(!lines[1].contains("secret_token_12345"));
     }
 }
