@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="bg_dark">#121418</color>
+    <color name="bg_card">#1E222B</color>
+    <color name="bg_card_secondary">#282D3A</color>
+    <color name="accent_green">#2ECC71</color>
+    <color name="accent_green_pressed">#27AE60</color>
+    <color name="accent_blue">#3498DB</color>
+    <color name="accent_amber">#F39C12</color>
+    <color name="text_primary">#FFFFFF</color>
+    <color name="text_secondary">#A0AAB8</color>
+    <color name="text_muted">#687385</color>
+    <color name="touch_btn_bg">#99202530</color>
+    <color name="touch_btn_active">#CC2ECC71</color>
+    <color name="touchpad_zone">#333498DB</color>
+</resources>

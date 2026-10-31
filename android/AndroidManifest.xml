@@ -2,9 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="dev.horizonmobile.launcher"
     android:versionCode="1"
-    android:versionName="0.1.0">
+    android:versionName="26.3.0">
 
-    <!-- Zero Java / Zero JVM: NativeActivity only -->
     <uses-feature android:name="android.hardware.touchscreen" android:required="true" />
     <uses-feature android:glEsVersion="0x00030000" android:required="true" />
 
@@ -15,28 +14,34 @@
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />
 
     <application
-        android:label="Horizon 26.3 Mobile"
-        android:hasCode="false"
+        android:label="Horizon 26.3 Launcher"
+        android:icon="@drawable/ic_launcher"
+        android:theme="@style/AppTheme"
+        android:hasCode="true"
         android:hardwareAccelerated="true"
         android:isGame="true"
         android:appCategory="game">
 
+        <!-- Main Launcher Dashboard (Pojav / Mojo Style) -->
         <activity
-            android:name="android.app.NativeActivity"
-            android:label="Horizon Mobile"
-            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|keyboard|navigation"
+            android:name="dev.horizonmobile.launcher.MainActivity"
+            android:label="Horizon 26.3 Launcher"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
             android:screenOrientation="sensorLandscape"
-            android:resizeableActivity="false"
             android:exported="true">
-
-            <meta-data
-                android:name="android.app.lib_name"
-                android:value="horizon_launcher_android" />
-
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- In-Game Host Activity (SurfaceView + Pojav Virtual Touchpad Overlay) -->
+        <activity
+            android:name="dev.horizonmobile.launcher.GameActivity"
+            android:label="Horizon 26.3"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|keyboard|navigation"
+            android:screenOrientation="sensorLandscape"
+            android:theme="@android:style/Theme.NoTitleBar.Fullscreen"
+            android:exported="false" />
     </application>
 </manifest>

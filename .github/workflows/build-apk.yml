@@ -1,4 +1,4 @@
-name: Build Android APK (0% Java)
+name: Build Android APK (Pojav-Style UI + Rust Engine)
 
 on:
   push:
@@ -11,12 +11,18 @@ permissions:
   contents: write
 
 jobs:
-  build-native-apk:
+  build-apk:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: false
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
 
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
@@ -36,21 +42,47 @@ jobs:
         run: |
           cargo ndk -t arm64-v8a build --release -p horizon-launcher-android
 
-      - name: Package Native APK
+      - name: Build and Package Full APK
         run: |
-          mkdir -p build/apk/lib/arm64-v8a
+          mkdir -p build/gen build/obj build/bin build/apk/lib/arm64-v8a
+          
+          # 1. Generate R.java from Android resources
+          ${ANDROID_HOME}/build-tools/34.0.0/aapt package -m \
+            -J build/gen \
+            -M android/AndroidManifest.xml \
+            -S android/res \
+            -I ${ANDROID_HOME}/platforms/android-34/android.jar
+            
+          # 2. Compile Java sources (Pojav-style UI + Touchpad Overlay)
+          javac -d build/obj \
+            -cp ${ANDROID_HOME}/platforms/android-34/android.jar \
+            build/gen/dev/horizonmobile/launcher/R.java \
+            android/src/dev/horizonmobile/launcher/*.java
+            
+          # 3. Convert bytecode to Dalvik DEX with d8
+          ${ANDROID_HOME}/build-tools/34.0.0/d8 \
+            --output build/bin \
+            --lib ${ANDROID_HOME}/platforms/android-34/android.jar \
+            $(find build/obj -name "*.class")
+            
+          # 4. Package resources and manifest into APK
+          ${ANDROID_HOME}/build-tools/34.0.0/aapt package -F build/horizon-unsigned.apk \
+            -M android/AndroidManifest.xml \
+            -S android/res \
+            -I ${ANDROID_HOME}/platforms/android-34/android.jar \
+            -f
+            
+          # 5. Add classes.dex into the APK
+          cd build/bin && zip -u ../horizon-unsigned.apk classes.dex && cd ../..
+          
+          # 6. Add native ARM64 shared library into APK
           cp target/aarch64-linux-android/release/libhorizon_launcher_android.so build/apk/lib/arm64-v8a/
-          
-          # Package manifest and base assets
-          ${ANDROID_HOME}/build-tools/34.0.0/aapt package -F build/horizon-unsigned.apk -M android/AndroidManifest.xml -I ${ANDROID_HOME}/platforms/android-34/android.jar -f
-          
-          # Add native shared libraries directly to APK
           cd build/apk && zip -u -r ../horizon-unsigned.apk lib/ && cd ../..
           
-          # Align 4-byte boundaries for page-aligned shared libraries
+          # 7. Page-align APK for Android runtime
           ${ANDROID_HOME}/build-tools/34.0.0/zipalign -v -p 4 build/horizon-unsigned.apk build/horizon-aligned.apk
           
-          # Sign with debug keystore
+          # 8. Sign APK with apksigner
           keytool -genkeypair -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
           ${ANDROID_HOME}/build-tools/34.0.0/apksigner sign --ks debug.keystore --ks-pass pass:android --out build/horizon-26.3-mobile-arm64.apk build/horizon-aligned.apk
 
@@ -60,3 +92,10 @@ jobs:
           name: horizon-26.3-mobile-arm64-apk
           path: build/horizon-26.3-mobile-arm64.apk
           if-no-files-found: error
+
+      - name: Update GitHub Release Asset
+        if: github.ref == 'refs/heads/master'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload v26.3.0 build/horizon-26.3-mobile-arm64.apk --clobber || true

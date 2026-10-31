@@ -62,6 +62,107 @@ fn android_main(app: AndroidApp) {
     }
 }
 
+/// JNI bridge methods callable from Java Activity classes (`MainActivity` and `GameActivity`).
+#[cfg(target_os = "android")]
+pub mod jni_exports {
+    use super::*;
+    use horizon_mobile_core::diagnostics::SystemDiagnostics;
+    use horizon_mobile_core::model::Renderer;
+    use horizon_mobile_core::performance::PerformanceProfile;
+    use horizon_mobile_core::touch::TouchLayout;
+    use jni::objects::{JClass, JObject, JString};
+    use jni::sys::{jboolean, jfloat, jint, jlong, jstring};
+    use jni::JNIEnv;
+    use std::path::PathBuf;
+    use std::str::FromStr;
+
+    #[no_mangle]
+    pub extern "system" fn Java_dev_horizonmobile_launcher_NativeBridge_launchGame(
+        mut env: JNIEnv,
+        _class: JClass,
+        game_dir: JString,
+        renderer: JString,
+        render_scale: jfloat,
+        memory_limit_mib: jint,
+        _surface: JObject,
+    ) -> jint {
+        let game_dir_str: String = match env.get_string(&game_dir) {
+            Ok(s) => s.into(),
+            Err(_) => return -1,
+        };
+        let renderer_str: String = match env.get_string(&renderer) {
+            Ok(s) => s.into(),
+            Err(_) => "auto".into(),
+        };
+
+        let parsed_renderer = Renderer::from_str(&renderer_str).unwrap_or(Renderer::Auto);
+        let mut perf = PerformanceProfile::recommend(memory_limit_mib as u64, 4);
+        perf.memory_limit_mib = memory_limit_mib as u32;
+        perf.render_scale = render_scale;
+
+        let config = GameLaunchConfig {
+            game_dir: PathBuf::from(game_dir_str),
+            renderer: parsed_renderer,
+            performance: perf,
+            touch_layout: TouchLayout::pojav_touchpad(),
+        };
+
+        let lib_path = config.game_dir.join("bin").join("libhorizon_client.so");
+        let bridge = NativeClientBridge::new(lib_path);
+        unsafe { bridge.launch(&config, std::ptr::null_mut()).unwrap_or(-2) }
+    }
+
+    #[no_mangle]
+    pub extern "system" fn Java_dev_horizonmobile_launcher_NativeBridge_sendTouchpadDelta(
+        _env: JNIEnv,
+        _class: JClass,
+        _dx: jfloat,
+        _dy: jfloat,
+    ) {
+    }
+
+    #[no_mangle]
+    pub extern "system" fn Java_dev_horizonmobile_launcher_NativeBridge_sendButtonAction(
+        _env: JNIEnv,
+        _class: JClass,
+        _action_id: jint,
+        _is_down: jboolean,
+    ) {
+    }
+
+    #[no_mangle]
+    pub extern "system" fn Java_dev_horizonmobile_launcher_NativeBridge_getDiagnosticsJson(
+        env: JNIEnv,
+        _class: JClass,
+    ) -> jstring {
+        let diag = SystemDiagnostics::probe();
+        let json = format!(
+            "{{\"os\":\"{}\",\"cores\":{},\"total_ram_mib\":{},\"avail_ram_mib\":{}}}",
+            diag.os, diag.cpu_cores, diag.total_memory_mib, diag.available_memory_mib
+        );
+        env.new_string(json)
+            .map(|s| s.into_raw())
+            .unwrap_or(std::ptr::null_mut())
+    }
+
+    #[no_mangle]
+    pub extern "system" fn Java_dev_horizonmobile_launcher_NativeBridge_recommendPresetJson(
+        env: JNIEnv,
+        _class: JClass,
+        total_ram_mib: jlong,
+        cores: jint,
+    ) -> jstring {
+        let rec = PerformanceProfile::recommend(total_ram_mib as u64, cores as usize);
+        let json = format!(
+            "{{\"preset\":\"{:?}\",\"ram_limit\":{},\"scale\":{},\"fps\":{}}}",
+            rec.preset, rec.memory_limit_mib, rec.render_scale, rec.target_fps
+        );
+        env.new_string(json)
+            .map(|s| s.into_raw())
+            .unwrap_or(std::ptr::null_mut())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use horizon_mobile_core::touch::{TouchAction, TouchLayout};

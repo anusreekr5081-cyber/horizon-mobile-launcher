@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Horizon 26.3 Launcher</string>
+    <string name="game_title">Horizon 26.3</string>
+    <string name="subtitle">Rust-Native Minecraft Java Edition Host</string>
+    <string name="btn_play">▶ PLAY</string>
+    <string name="btn_settings">SETTINGS</string>
+    <string name="btn_controls">CONTROLS</string>
+    <string name="profile_label">PROFILE</string>
+    <string name="renderer_label">RENDERER</string>
+    <string name="ram_label">RAM ALLOCATION</string>
+    <string name="fps_label">TARGET FPS</string>
+</resources>

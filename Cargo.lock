@@ -194,6 +194,7 @@ version = "0.1.0"
 dependencies = [
  "android-activity",
  "horizon-mobile-core",
+ "jni 0.21.1",
  "libc",
 ]
 

@@ -16,3 +16,4 @@ horizon-mobile-core = { path = "../launcher-core" }
 [target.'cfg(target_os = "android")'.dependencies]
 android-activity = { version = "0.6", features = ["native-activity"] }
 libc = "0.2"
+jni = "0.21"
