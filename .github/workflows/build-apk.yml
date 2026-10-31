@@ -51,7 +51,9 @@ jobs:
             -J build/gen \
             -M android/AndroidManifest.xml \
             -S android/res \
-            -I ${ANDROID_HOME}/platforms/android-34/android.jar
+            -I ${ANDROID_HOME}/platforms/android-34/android.jar \
+            --min-sdk-version 24 \
+            --target-sdk-version 34
             
           # 2. Compile Java sources (Pojav-style UI + Touchpad Overlay)
           javac -d build/obj \
@@ -70,6 +72,8 @@ jobs:
             -M android/AndroidManifest.xml \
             -S android/res \
             -I ${ANDROID_HOME}/platforms/android-34/android.jar \
+            --min-sdk-version 24 \
+            --target-sdk-version 34 \
             -f
             
           # 5. Add classes.dex into the APK
