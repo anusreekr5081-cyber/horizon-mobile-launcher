@@ -70,7 +70,7 @@ pub fn list_worlds(game_dir: &Path) -> Result<Vec<WorldInfo>> {
             });
         }
     }
-    worlds.sort_by(|a, b| b.last_modified_unix.cmp(&a.last_modified_unix));
+    worlds.sort_by_key(|a| std::cmp::Reverse(a.last_modified_unix));
     Ok(worlds)
 }
 

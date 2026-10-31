@@ -14,20 +14,15 @@ use crate::{
 
 /// Rendering backends are selected by the Android runtime bridge. The core only
 /// persists the choice; it never loads a driver or executes a shell command.
-#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Renderer {
+    #[default]
     Auto,
     Zink,
     Virgl,
     Gl4es,
     Angle,
-}
-
-impl Default for Renderer {
-    fn default() -> Self {
-        Self::Auto
-    }
 }
 
 impl fmt::Display for Renderer {
@@ -117,6 +112,11 @@ pub fn validate_name(name: &str) -> Result<()> {
     if safe_id(name).is_empty() {
         return Err(LauncherError::InvalidProfile(
             "name needs at least one letter or number".into(),
+        ));
+    }
+    if name.contains("..") {
+        return Err(LauncherError::InvalidProfile(
+            "name cannot contain directory traversal sequence '..'".into(),
         ));
     }
     if name

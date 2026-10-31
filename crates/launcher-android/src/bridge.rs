@@ -72,7 +72,11 @@ impl NativeClientBridge {
 
         #[cfg(target_os = "android")]
         {
-            let lib_c = CString::new(self.library_path.to_str().unwrap()).unwrap();
+            let lib_str = self
+                .library_path
+                .to_str()
+                .ok_or_else(|| "invalid UTF-8 in library path".to_string())?;
+            let lib_c = CString::new(lib_str).map_err(|e| e.to_string())?;
             let handle = libc::dlopen(lib_c.as_ptr(), libc::RTLD_NOW);
             if handle.is_null() {
                 let err_ptr = libc::dlerror();
@@ -86,7 +90,8 @@ impl NativeClientBridge {
                 return Err(format!("dlopen failed: {err_str}"));
             }
 
-            let symbol_name = CString::new("horizon_client_android_main").unwrap();
+            let symbol_name =
+                CString::new("horizon_client_android_main").map_err(|e| e.to_string())?;
             let func_ptr = libc::dlsym(handle, symbol_name.as_ptr());
             if func_ptr.is_null() {
                 libc::dlclose(handle);

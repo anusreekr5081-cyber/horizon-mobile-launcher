@@ -147,15 +147,23 @@ impl LauncherStore {
             profiles: profiles.to_vec(),
         })?;
         let final_path = self.profiles_path();
-        let temporary_path = self
-            .root
-            .join(format!(".{PROFILES_FILE}.{}.tmp", std::process::id()));
+        let nonce = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos();
+        let temporary_path = self.root.join(format!(
+            ".{PROFILES_FILE}.{}.{nonce}.tmp",
+            std::process::id()
+        ));
         {
             let mut file = fs::File::create(&temporary_path)?;
             file.write_all(&contents)?;
             file.sync_all()?;
         }
-        fs::rename(temporary_path, final_path)?;
+        if let Err(err) = fs::rename(&temporary_path, &final_path) {
+            let _ = fs::remove_file(&temporary_path);
+            return Err(err.into());
+        }
         Ok(())
     }
 }

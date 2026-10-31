@@ -28,7 +28,9 @@ COMMANDS:
     profile create <NAME> [RAM]   Create a new profile (e.g. `horizon-cli profile create "LowEnd" 512`)
     profile delete <ID>           Delete a profile by ID
     perf recommend                Suggest optimal low-end settings for this device
-    touch export <PRESET> <OUT>   Export touch layout (PRESET: default | compact)
+    perf extreme                  Print 120Hz/240Hz flagship performance configuration
+    perf custom <RAM> <SCL> <CHK> <FPS> Validate custom performance parameters
+    touch export <PRESET> <OUT>   Export touch layout (PRESET: default | compact | pojav)
     content worlds <PROFILE_ID>   List worlds in a profile's game directory
     content mods <PROFILE_ID>     List installed mods in a profile
     content toggle <PROFILE_ID> <MOD> <on|off> Toggle a mod
@@ -170,18 +172,44 @@ fn main() -> ExitCode {
                     "RAM: {} MiB | Scale: {:.2} | Chunks: {} | FPS: {}",
                     rec.memory_limit_mib, rec.render_scale, rec.render_distance, rec.target_fps
                 );
+            } else if args.len() > 2 && args[2] == "extreme" {
+                let ext = PerformanceProfile::extreme();
+                println!("Extreme Flagship Profile: {:?}", ext.preset);
+                println!(
+                    "RAM: {} MiB | Scale: {:.2} | Chunks: {} | FPS: {}",
+                    ext.memory_limit_mib, ext.render_scale, ext.render_distance, ext.target_fps
+                );
+            } else if args.len() >= 7 && args[2] == "custom" {
+                let ram: u32 = args[3].parse().unwrap_or(1024);
+                let scale: f32 = args[4].parse().unwrap_or(0.75);
+                let chunks: u32 = args[5].parse().unwrap_or(8);
+                let fps: u32 = args[6].parse().unwrap_or(60);
+                match PerformanceProfile::custom(ram, scale, chunks, fps) {
+                    Ok(p) => {
+                        println!("Custom configuration valid: {:?}", p.preset);
+                        println!(
+                            "RAM: {} MiB | Scale: {:.2} | Chunks: {} | FPS: {}",
+                            p.memory_limit_mib, p.render_scale, p.render_distance, p.target_fps
+                        );
+                    }
+                    Err(e) => {
+                        eprintln!("Invalid custom performance parameters: {e}");
+                        return ExitCode::FAILURE;
+                    }
+                }
             } else {
-                eprintln!("Usage: horizon-cli perf recommend");
+                eprintln!("Usage: horizon-cli perf <recommend | extreme | custom <RAM> <SCALE> <CHUNKS> <FPS>>");
                 return ExitCode::FAILURE;
             }
         }
         "touch" => {
             if args.len() < 5 || args[2] != "export" {
-                eprintln!("Usage: horizon-cli touch export <default|compact> <OUTPUT_PATH>");
+                eprintln!("Usage: horizon-cli touch export <default|compact|pojav> <OUTPUT_PATH>");
                 return ExitCode::FAILURE;
             }
             let layout = match args[3].as_str() {
                 "compact" => TouchLayout::compact_low_end(),
+                "pojav" => TouchLayout::pojav_touchpad(),
                 _ => TouchLayout::default_phone(),
             };
             let out_path = PathBuf::from(&args[4]);

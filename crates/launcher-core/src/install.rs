@@ -127,12 +127,19 @@ fn atomic_write(path: &Path, data: &[u8]) -> Result<()> {
         LauncherError::InvalidProfile("installation record has no parent directory".into())
     })?;
     fs::create_dir_all(parent)?;
-    let temporary = path.with_extension("new");
+    let nonce = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos();
+    let temporary = path.with_extension(format!("tmp.{nonce}"));
     {
         let mut file = fs::File::create(&temporary)?;
         file.write_all(data)?;
         file.sync_all()?;
     }
-    fs::rename(temporary, path)?;
+    if let Err(err) = fs::rename(&temporary, path) {
+        let _ = fs::remove_file(&temporary);
+        return Err(err.into());
+    }
     Ok(())
 }

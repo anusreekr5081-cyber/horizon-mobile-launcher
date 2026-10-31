@@ -157,4 +157,35 @@ mod tests {
         assert!(lines[1].contains("[REDACTED_TOKEN]"));
         assert!(!lines[1].contains("secret_token_12345"));
     }
+
+    #[test]
+    fn pojav_touchpad_layout_and_extreme_perf_validation() {
+        let pojav = TouchLayout::pojav_touchpad();
+        assert!(pojav.touchpad.is_some());
+        let tp = pojav.touchpad.as_ref().unwrap();
+        assert!(tp.enabled);
+        assert!(tp.contains_point(0.50, 0.50));
+        assert!(!tp.contains_point(0.01, 0.01));
+
+        // Hotbar buttons 1 to 9 present
+        for slot in 1..=9 {
+            assert!(pojav
+                .buttons
+                .iter()
+                .any(|b| b.action == TouchAction::HotbarSlot(slot)));
+        }
+
+        // Extreme profile testing for 120Hz/240Hz flagships
+        let extreme = PerformanceProfile::extreme();
+        assert_eq!(extreme.target_fps, 120);
+        assert_eq!(extreme.memory_limit_mib, 4096);
+        assert!(extreme.validate().is_ok());
+
+        // Custom profile testing
+        let custom = PerformanceProfile::custom(3072, 0.85, 10, 144);
+        assert!(custom.is_ok());
+        let custom = custom.unwrap();
+        assert_eq!(custom.target_fps, 144);
+        assert_eq!(custom.memory_limit_mib, 3072);
+    }
 }

@@ -31,12 +31,12 @@ fn android_main(app: AndroidApp) {
     // Initialize or load default profile if none exists
     let profiles = launcher.profiles().list_profiles().unwrap_or_default();
     let _active_profile = if let Some(first) = profiles.into_iter().next() {
-        first
+        Some(first)
     } else {
         launcher
             .profiles()
             .create_profile("Low End 26.3", "26.3", Renderer::Auto, 512)
-            .unwrap()
+            .ok()
     };
 
     let touch_layout = TouchLayout::compact_low_end();
@@ -95,6 +95,47 @@ mod tests {
         let released = manager.on_pointer_up(1);
         assert_eq!(released, Some(TouchAction::Jump));
         assert!(!manager.is_action_pressed(TouchAction::Jump));
+    }
+
+    #[test]
+    fn pojav_touchpad_mouse_mode_and_relative_motion() {
+        let layout = TouchLayout::pojav_touchpad();
+        assert!(layout.touchpad.is_some());
+        let mut manager = TouchInputManager::new(layout);
+
+        assert!(!manager.is_mouse_mode());
+
+        // Find MOUSE toggle button
+        let mouse_btn = manager
+            .layout()
+            .buttons
+            .iter()
+            .find(|b| b.action == TouchAction::ToggleMouseMode)
+            .expect("MOUSE button should exist in Pojav layout");
+        let btn_x = mouse_btn.x + (mouse_btn.width / 2.0);
+        let btn_y = mouse_btn.y + (mouse_btn.height / 2.0);
+
+        // Tap MOUSE toggle button -> toggles mouse mode on
+        let action = manager.on_pointer_down(10, btn_x, btn_y);
+        assert_eq!(action, Some(TouchAction::ToggleMouseMode));
+        assert!(manager.is_mouse_mode());
+        manager.on_pointer_up(10);
+        assert!(manager.is_mouse_mode());
+
+        // Touchpad area drag: pointer down inside touchpad area (e.g. at 0.50, 0.50)
+        let tp_action = manager.on_pointer_down(20, 0.50, 0.50);
+        assert_eq!(tp_action, None); // Touchpad drag is not a button action
+        assert!(manager.is_touchpad_active());
+
+        // Move pointer by +0.05 X, +0.02 Y
+        manager.on_pointer_move(20, 0.55, 0.52);
+        let (dx, dy) = manager.take_accumulated_delta();
+        assert!(dx > 0.0);
+        assert!(dy > 0.0);
+
+        // Release touchpad pointer
+        manager.on_pointer_up(20);
+        assert!(!manager.is_touchpad_active());
     }
 
     #[test]

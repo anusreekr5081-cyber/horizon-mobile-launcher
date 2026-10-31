@@ -16,6 +16,7 @@ pub enum PerformancePreset {
     Low,
     Balanced,
     High,
+    Extreme,
     Custom,
 }
 
@@ -135,9 +136,44 @@ impl PerformanceProfile {
         }
     }
 
+    /// Extreme preset for high-refresh-rate flagship Android devices (90Hz / 120Hz / 144Hz / 240Hz).
+    pub fn extreme() -> Self {
+        Self {
+            preset: PerformancePreset::Extreme,
+            memory_limit_mib: 4096,
+            render_scale: 1.0,
+            render_distance: 16,
+            target_fps: 120,
+            max_worker_threads: 8,
+            vsync: false,
+            particles: ParticleQuality::All,
+            mipmaps: 4,
+            force_16bit_depth: false,
+            aggressive_gc: false,
+            shader_cache: true,
+        }
+    }
+
+    /// User-customized performance configuration with strict hardware safety bounds validation.
+    pub fn custom(
+        memory_limit_mib: u32,
+        render_scale: f32,
+        render_distance: u32,
+        target_fps: u32,
+    ) -> Result<Self> {
+        let mut profile = Self::balanced();
+        profile.preset = PerformancePreset::Custom;
+        profile.memory_limit_mib = memory_limit_mib;
+        profile.render_scale = render_scale;
+        profile.render_distance = render_distance;
+        profile.target_fps = target_fps;
+        profile.validate()?;
+        Ok(profile)
+    }
+
     /// Automatically suggests the safest performance preset given available device RAM and CPU cores.
     pub fn recommend(ram_mib: u64, cpu_cores: usize) -> Self {
-        if ram_mib <= 2560 || cpu_cores <= 4 {
+        if ram_mib == 0 || ram_mib <= 2560 || cpu_cores <= 4 {
             Self::ultra_low()
         } else if ram_mib <= 4096 || cpu_cores <= 6 {
             Self::low()
