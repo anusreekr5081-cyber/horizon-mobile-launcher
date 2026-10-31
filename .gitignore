@@ -1,0 +1,8 @@
+/target
+**/*.apk
+**/*.aab
+**/*.so
+.DS_Store
+.local/
+android/.gradle/
+android/build/
