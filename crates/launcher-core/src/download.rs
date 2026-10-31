@@ -70,13 +70,10 @@ pub fn stage_verified_copy(
     Ok(bytes_written)
 }
 
-pub fn copy_from_reader(
-    source: &mut dyn Read,
-    target: &Path,
-) -> io::Result<u64> {
-    let parent = target.parent().ok_or_else(|| {
-        io::Error::new(io::ErrorKind::InvalidInput, "target has no parent")
-    })?;
+pub fn copy_from_reader(source: &mut dyn Read, target: &Path) -> io::Result<u64> {
+    let parent = target
+        .parent()
+        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "target has no parent"))?;
     fs::create_dir_all(parent)?;
     let mut output = fs::File::create(target)?;
     io::copy(source, &mut output)

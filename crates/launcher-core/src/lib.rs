@@ -18,13 +18,14 @@ pub use launcher::{LauncherSnapshot, NativeLauncher};
 
 #[cfg(test)]
 mod tests {
-    use std::{fs, io::Cursor, time::{SystemTime, UNIX_EPOCH}};
+    use std::{
+        fs,
+        io::Cursor,
+        time::{SystemTime, UNIX_EPOCH},
+    };
 
     use super::{
-        download::stage_verified_copy,
-        horizon::AndroidAbi,
-        model::Renderer,
-        NativeLauncher,
+        download::stage_verified_copy, horizon::AndroidAbi, model::Renderer, NativeLauncher,
     };
 
     fn temporary_directory(name: &str) -> std::path::PathBuf {

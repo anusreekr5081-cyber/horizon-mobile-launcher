@@ -119,7 +119,10 @@ pub fn validate_name(name: &str) -> Result<()> {
             "name needs at least one letter or number".into(),
         ));
     }
-    if name.chars().any(|c| c.is_control() || matches!(c, '/' | '\\')) {
+    if name
+        .chars()
+        .any(|c| c.is_control() || matches!(c, '/' | '\\'))
+    {
         return Err(LauncherError::InvalidProfile(
             "name cannot contain path separators or control characters".into(),
         ));

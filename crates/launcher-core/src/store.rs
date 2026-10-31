@@ -129,7 +129,9 @@ impl LauncherStore {
     fn validate_loaded_profile(&self, profile: &Profile) -> Result<()> {
         let prefix = safe_id(&profile.name);
         if prefix.is_empty() || !profile.id.starts_with(&format!("{prefix}-")) {
-            return Err(LauncherError::InvalidProfile("profile id is malformed".into()));
+            return Err(LauncherError::InvalidProfile(
+                "profile id is malformed".into(),
+            ));
         }
         if profile.game_dir != self.instance_dir(&profile.id) {
             return Err(LauncherError::InvalidProfile(
